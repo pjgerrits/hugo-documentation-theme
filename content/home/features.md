@@ -9,10 +9,10 @@ feature:
     icon_pack: fas
     name: Project Documentation
     description: For users
-  - icon: question
-    icon_pack: fas
-    name: Knowledge Base
-    description: For teams
+# - icon: question
+#   icon_pack: fas
+#   name: Knowledge Base
+#   description: For teams
   - icon: list-alt
     icon_pack: fas
     name: Personal Notebook
