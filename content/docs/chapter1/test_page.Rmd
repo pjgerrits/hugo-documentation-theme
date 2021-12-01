@@ -1,9 +1,10 @@
 ---
 title: "Test_page"
 linktitle: Test_page
+type: book
 author: "PietGerrits"
 date: "01/12/2021"
-type: book
+weight: 2
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +21,8 @@ When you click the **Knit** button a document will be generated that includes bo
 summary(cars)
 ```
 
+\newpage
+
 ## Including Plots
 
 You can also embed plots, for example:
@@ -29,3 +32,15 @@ plot(pressure)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Show map in test
+
+example of a leaflet map in Rmarkdown
+
+```{r leaflet, echo=FALSE}
+library(leaflet)
+leaflet() %>%
+  addTiles %>% # Add default OpenStreetMap map tiles
+  setView(lng = 5.0, lat = 51.0, zoom = 6)
+```
+
