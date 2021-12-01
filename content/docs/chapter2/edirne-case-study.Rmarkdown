@@ -12,20 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Install the needed libraries
 
 ```{r}
-library(ggplot2)
-library(maps)
-library(ggmap)
-library(readxl)
-library(leaflet)
-library(mapdeck)
-library(dplyr)
-library(tidyverse)
-library(sf)
-library(rgdal)
-library(geosphere)
-library(RgoogleMaps)
-library(raster)
-library(sp)
+1+1
 ```
 
 
