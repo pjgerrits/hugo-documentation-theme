@@ -1,6 +1,6 @@
 ---
 title: "Edirne-Case-Study"
-author: "PietGerrits"
+author: "Piet Gerrits"
 date: "21/11/2021"
 output: html_document
 ---
