@@ -1,6 +1,7 @@
 ---
+active: false
 widget: hero
-headless: false
+headless: true
 weight: 10
 title: Project Docs Template
 hero_media: book.svg

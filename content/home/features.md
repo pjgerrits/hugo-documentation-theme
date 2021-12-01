@@ -7,14 +7,14 @@ subtitle: Document _anything_ ✨
 feature:
   - icon: book-open
     icon_pack: fas
-    name: PhD Progress Documentation
+    name: PhD Documentation
     description:
-# - icon: question
-#   icon_pack: fas
-#   name: Knowledge Base
-#   description: For teams
   - icon: list-alt
     icon_pack: fas
     name: Personal Notebook
-    description: For testing purposes
+    description: 
+  - icon: question
+    icon_pack: fas
+    name: Knowledge Base
+    description:
 ---
