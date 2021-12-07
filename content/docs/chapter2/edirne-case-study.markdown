@@ -1,8 +1,9 @@
 ---
 title: "Edirne-Case-Study"
+linktitle: Edirne-Case-Study
+type: book
 author: "Piet Gerrits"
 date: "21/11/2021"
-output: html_document
 ---
 
 
@@ -20,8 +21,6 @@ output: html_document
 
 
 ## R Markdown
-
-
 
 
 ```r
