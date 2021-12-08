@@ -2,7 +2,7 @@
 # Title, summary, and page position.
 linktitle: Chapter 1
 summary: Learn how to use Wowchemy's docs layout for publishing online courses, software documentation, and tutorials.
-weight: 1
+weight: 2
 icon: book
 icon_pack: fas
 

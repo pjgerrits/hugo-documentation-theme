@@ -1,0 +1,105 @@
+---
+title: "Edirne"
+linktitle: edirne-case-study
+type: book
+author: "PietGerrits"
+date: "01/12/2021"
+weight: 1
+# Prev/next pager order (if `docs_section_pager` enabled in `params.toml`)
+---
+## 1. libraries
+```{r setup, echo=TRUE}
+library(DBI)
+library(sf)
+library(st)
+library(leaflet)
+library(ggplot2)
+library(tmap)
+
+```
+
+## 2. Connect to PostgreSQL Database
+
+```{r setup_db, echo=TRUE}
+library(DBI)
+db <- 'urbanoccupations_db'  #provide the name of your db
+host_db <- 'aws-eu-central-1-portal.1.dblayer.com' #i.e. # i.e. 'ec2-54-83-201-96.compute-1.amazonaws.com'  
+db_port <- '18368'  # or any other port specified by the DBA
+db_u <- 'online_user'  
+db_p <- 'Peculiar-Crazy9-Trailing'
+con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_u, password=db_p)
+```
+
+## 3. Access PostgreSQL layer and query dataset for Motorized Transport
+
+```{r motor, echo=TRUE}
+file_motor = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Ausgebaute Allwetterstrasse', 'Fahrstrasse')")
+newGeom = st_as_sfc(structure(as.character(file_motor$geom), class = "WKB"),EWKB=TRUE)
+file_motor_geom = st_set_geometry(file_motor, newGeom)
+# plot(file_motor_geom$geometry)
+map_motor = ggplot(file_motor_geom) + geom_sf(aes(colour = "black")) 
+map_motor
+```
+
+## 4. Access PostgreSQL layer and query dataset for cart Transport
+
+```{r cart, echo=TRUE}
+file_cart = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Karawanenweg', 'Saumweg')")
+newGeom = st_as_sfc(structure(as.character(file_cart$geom), class = "WKB"),EWKB=TRUE)
+file_cart_geom = st_set_geometry(file_cart, newGeom)
+map_cart = ggplot(file_cart_geom) + geom_sf() + aes(colour = "red") 
+map_cart
+```
+
+## 5. Access PostgreSQL layer and query dataset for Walking paths
+
+```{r walking, echo=TRUE}
+file_walk = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Fußweg')")
+newGeom = st_as_sfc(structure(as.character(file_walk$geom), class = "WKB"),EWKB=TRUE)
+file_walk_geom = st_set_geometry(file_walk, newGeom)
+map_cart = ggplot(file_walk_geom) + geom_sf() + aes(col = "yellow") 
+map_cart
+```
+
+## 6a. Access PostgreSQL layer and query dataset for Settlement layer
+```{r settlelments, echo=TRUE}
+file_settlements = dbGetQuery(con, "select * from piet_phd_data.nfs_settlements_1940_pop_xy where not geom in ('0101000020E610000000000000000000000000000000000000')")
+newGeom = st_as_sfc(structure(as.character(file_settlements$geom), class = "WKB"),EWKB=TRUE)
+file_settlements_geom = st_set_geometry(file_settlements, newGeom)
+plot(file_settlements_geom$geometry)
+```
+
+## 6b. Visualize first few rows of data
+
+```{r data}
+head(file_settlements, 10)
+
+```
+
+
+## 8. example of a leaflet map in Rmarkdown
+
+## 8a.first we calculate a column for symbology
+
+```{r symbology, echo=TRUE}
+#Classification of population figures and addition of column "colorpal" for symbolisation
+file_settlements_geom$colorpal <- cut(file_settlements_geom$both, c(0,250,500,1000,2500,20000), include.lowest = F, labels = c('250', '500', '1000', '2500', '2500+'))
+
+# Colour coding of the legend and symbols in leaflet map
+beatCol <- colorFactor(palette = 'BuPu', file_settlements_geom$colorpal)
+```
+
+## 8b. Map creation
+
+```{r leaflet, echo=FALSE}
+map <- leaflet() %>% 
+  addTiles() %>%
+  addProviderTiles(providers$Stamen.Toner, group = 'Toner')  %>%
+  addCircleMarkers(data=file_settlements_geom, file_settlements_geom$newpoint_x, file_settlements_geom$newpoint_y, color = ~beatCol(colorpal), radius = ~sqrt(both/1000), group = 'Home - Jun',  opacity = 1, weight = 10, popup = ~paste0("<b>", belediye_koy_original, "</b>","<br/>", format(both, big.mark=","))) %>%
+  addPolylines(data=file_motor_geom$geometry, color = "Green",   smoothFactor = 1,  opacity = 0.5, weight =5) %>%
+  addPolylines(data=file_cart_geom$geometry, color = "Pink",   smoothFactor = 1,  opacity = 0.4, weight =2) %>%
+  addPolylines(data=file_walk_geom$geometry, color = "Red",   smoothFactor = 1,  opacity = 0.5, weight =4) %>%
+  addLegend('bottomright', pal = beatCol, values = file_settlements_geom$colorpal, title = '<b>Settlement size</b>', opacity = 1)
+map
+```
+
