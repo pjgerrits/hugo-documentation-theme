@@ -71,9 +71,10 @@ plot(file_settlements_geom$geometry)
 
 ## 6b. Visualize first few rows of data
 
-```{r data}
-head(file_settlements, 10)
+```{r data, echo=TRUE}
+library (knitr)
 
+kable(head(file_settlements, 10), caption = "Sample of Dataset")
 ```
 
 
