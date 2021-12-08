@@ -4,6 +4,7 @@ linktitle: Edirne-Case-Study
 type: book
 author: "Piet Gerrits"
 date: "21/11/2021"
+weight: 6
 ---
 
 
