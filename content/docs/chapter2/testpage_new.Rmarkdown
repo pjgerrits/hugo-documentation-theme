@@ -19,7 +19,7 @@ library(leaflet)
 ## connect to PostgreSQL Database
 
 ```{r setup_db, include=FALSE}
-con<-dbConnect(RPostgres::Postgres())
+library(DBI)
 db <- 'urbanoccupations_db'  #provide the name of your db
 host_db <- 'aws-eu-central-1-portal.1.dblayer.com' #i.e. # i.e. 'ec2-54-83-201-96.compute-1.amazonaws.com'  
 db_port <- '18368'  # or any other port specified by the DBA
