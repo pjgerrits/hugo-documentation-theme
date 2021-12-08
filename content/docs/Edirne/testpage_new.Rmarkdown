@@ -11,10 +11,10 @@ weight: 1
 ```{r setup, echo=TRUE}
 library(DBI)
 library(sf)
-library(st)
 library(leaflet)
 library(ggplot2)
 library(tmap)
+library(dplyr)
 
 ```
 
@@ -37,7 +37,7 @@ file_motor = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transpo
 newGeom = st_as_sfc(structure(as.character(file_motor$geom), class = "WKB"),EWKB=TRUE)
 file_motor_geom = st_set_geometry(file_motor, newGeom)
 # plot(file_motor_geom$geometry)
-map_motor = ggplot(file_motor_geom) + geom_sf(aes(colour = "black")) 
+map_motor = ggplot(file_motor_geom) + geom_sf()
 map_motor
 ```
 
@@ -57,7 +57,7 @@ map_cart
 file_walk = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Fußweg')")
 newGeom = st_as_sfc(structure(as.character(file_walk$geom), class = "WKB"),EWKB=TRUE)
 file_walk_geom = st_set_geometry(file_walk, newGeom)
-map_cart = ggplot(file_walk_geom) + geom_sf() + aes(col = "yellow") 
+map_cart = ggplot(file_walk_geom) + geom_sf() + aes(col = "red") 
 map_cart
 ```
 
@@ -69,7 +69,7 @@ file_settlements_geom = st_set_geometry(file_settlements, newGeom)
 plot(file_settlements_geom$geometry)
 ```
 
-## 6b. Visualize first few rows of data
+## 6b. Visualize first few rows of data as a sample
 
 ```{r data, echo=TRUE}
 library (knitr)
@@ -92,7 +92,7 @@ beatCol <- colorFactor(palette = 'BuPu', file_settlements_geom$colorpal)
 
 ## 8b. Map creation
 
-```{r leaflet, echo=FALSE}
+```{r leaflet, echo=TRUE}
 map <- leaflet() %>% 
   addTiles() %>%
   addProviderTiles(providers$Stamen.Toner, group = 'Toner')  %>%
@@ -104,3 +104,20 @@ map <- leaflet() %>%
 map
 ```
 
+## 9 Exploratory Data Analysis (EDA)
+
+## 9a Calculate distance from settlements to the nearest roads per type
+```{r Eucl Distance}
+result <-st_distance(file_settlements_geom, file_motor_geom)
+head(result)
+```
+
+## 9b From the top Nearest cities in the regiion
+```{r Top nearest cities}
+
+```
+
+## 9c Correlation between Male/Female ratio distribution and Settlement size
+```{r Distribution}
+
+```
