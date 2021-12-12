@@ -15,7 +15,7 @@ library(leaflet)
 library(ggplot2)
 library(tmap)
 library(dplyr)
-
+library(nngeo)
 ```
 
 ## 2. Connect to PostgreSQL Database
@@ -80,7 +80,7 @@ kable(head(file_settlements, 10), caption = "Sample of Dataset")
 
 ## 8. example of a leaflet map in Rmarkdown
 
-## 8a.first we calculate a column for symbology
+## 8a.Calculate symbology column
 
 ```{r symbology, echo=TRUE}
 #Classification of population figures and addition of column "colorpal" for symbolisation
@@ -96,20 +96,46 @@ beatCol <- colorFactor(palette = 'BuPu', file_settlements_geom$colorpal)
 map <- leaflet() %>% 
   addTiles() %>%
   addProviderTiles(providers$Stamen.Toner, group = 'Toner')  %>%
-  addCircleMarkers(data=file_settlements_geom, file_settlements_geom$newpoint_x, file_settlements_geom$newpoint_y, color = ~beatCol(colorpal), radius = ~sqrt(both/1000), group = 'Home - Jun',  opacity = 1, weight = 10, popup = ~paste0("<b>", belediye_koy_original, "</b>","<br/>", format(both, big.mark=","))) %>%
-  addPolylines(data=file_motor_geom$geometry, color = "Green",   smoothFactor = 1,  opacity = 0.5, weight =5) %>%
-  addPolylines(data=file_cart_geom$geometry, color = "Pink",   smoothFactor = 1,  opacity = 0.4, weight =2) %>%
-  addPolylines(data=file_walk_geom$geometry, color = "Red",   smoothFactor = 1,  opacity = 0.5, weight =4) %>%
-  addLegend('bottomright', pal = beatCol, values = file_settlements_geom$colorpal, title = '<b>Settlement size</b>', opacity = 1)
+  addProviderTiles(provider = providers$Esri.WorldImagery, group = 'ESRI')  %>%
+  addCircleMarkers(data=file_settlements_geom, file_settlements_geom$newpoint_x, file_settlements_geom$newpoint_y, color = ~beatCol(colorpal), radius = ~sqrt(both/1000), group = 'Settlements',  opacity = 1, weight = 10, popup = ~paste0("<b>", belediye_koy_original, "</b>","<br/>", format(both, big.mark=","))) %>%
+  addPolylines(data=file_motor_geom$geometry, color = "Green",   smoothFactor = 1,  opacity = 0.5, weight =5, group = 'Motorways') %>%
+  addPolylines(data=file_cart_geom$geometry, color = "Pink",   smoothFactor = 1,  opacity = 0.4, weight =2, group = 'Cart roads') %>%
+  addPolylines(data=file_walk_geom$geometry, color = "Red",   smoothFactor = 1,  opacity = 0.5, weight =4, group = 'Walking paths') %>%
+  addLegend('bottomright', pal = beatCol, values = file_settlements_geom$colorpal, title = '<b>Settlement size</b>', opacity = 1) %>%
+addLayersControl(
+    baseGroups = c("Toner (default)", "ESRI"),
+    overlayGroups = c("Settlements", "Motorways", "Cart roads", "Walking paths"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
 map
 ```
 
 ## 9 Exploratory Data Analysis (EDA)
 
 ## 9a Calculate distance from settlements to the nearest roads per type
-```{r Eucl Distance}
-result <-st_distance(file_settlements_geom, file_motor_geom)
-head(result)
+```{r Eucl Distance, echo=FALSE,results='hide', message=FALSE,fig.keep='all'}
+
+library(sf) 
+result1 <-st_nn(file_settlements_geom, file_motor_geom)
+result2 <-st_nn(file_settlements_geom, file_cart_geom)
+result3 <-st_nn(file_settlements_geom, file_walk_geom)
+# st_nearest_points(file_motor_geom, file_settlements_geom)
+# head(result)
+l = st_connect(file_settlements_geom, file_motor_geom, ids = result1, progress = FALSE)
+m = st_connect(file_settlements_geom, file_cart_geom, ids = result2, progress = FALSE)
+n = st_connect(file_settlements_geom, file_walk_geom, ids = result3, progress = FALSE)
+plot(l, col = NA)  # For setting the extent
+plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+plot(st_geometry(file_motor_geom), col = "red", add = TRUE)
+plot(l, add = TRUE)
+plot(m, col = NA)  # For setting the extent
+plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+plot(st_geometry(file_cart_geom), col = "red", add = TRUE)
+plot(m, add = TRUE)
+plot(n, col = NA)  # For setting the extent
+plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+plot(st_geometry(file_walk_geom), col = "red", add = TRUE)
+plot(n, add = TRUE)
 ```
 
 ## 9b From the top Nearest cities in the regiion
