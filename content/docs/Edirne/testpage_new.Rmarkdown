@@ -95,6 +95,7 @@ beatCol <- colorFactor(palette = 'BuPu', file_settlements_geom$colorpal)
 ```{r leaflet, echo=TRUE}
 map <- leaflet() %>% 
   addTiles() %>%
+  addMiniMap( position = "topleft",   toggleDisplay = TRUE, autoToggleDisplay = TRUE, collapsedWidth = 19, collapsedHeight = 19, minimized=TRUE) %>%
   addProviderTiles(providers$Stamen.Toner, group = 'Toner')  %>%
   addProviderTiles(provider = providers$Esri.WorldImagery, group = 'ESRI')  %>%
   addCircleMarkers(data=file_settlements_geom, file_settlements_geom$newpoint_x, file_settlements_geom$newpoint_y, color = ~beatCol(colorpal), radius = ~sqrt(both/1000), group = 'Settlements',  opacity = 1, weight = 10, popup = ~paste0("<b>", belediye_koy_original, "</b>","<br/>", format(both, big.mark=","))) %>%
