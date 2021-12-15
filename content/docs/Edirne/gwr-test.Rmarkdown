@@ -1,0 +1,289 @@
+---
+title: "GWR-test"
+linktitle: GWR-test
+type: book
+author: "PietGerrits"
+date: "01/12/2021"
+weight: 2
+---
+
+```{r setup, include=FALSE}
+```
+
+## Summary
+
+This page contains a test of GWR functionality I have been experimenting with so far. I have been following a tutorial that was provided by Dr Andrew MacLachlan at CASA and is part of the Geographic Information Systems and Science module.Link to the actual tutorial can be found here:
+
+https://andrewmaclachlan.github.io/CASA0005repo_20192020/gwr-and-spatially-lagged-regression.html
+
+## setup libraries
+
+```{r libraries, include=TRUE}
+
+library(tidyverse)
+library(tmap)
+library(geojsonio)
+library(plotly)
+library(rgdal)
+library(broom)
+library(mapview)
+library(crosstalk)
+library(sf)
+library(sp)
+library(spdep)
+library(car)
+library(fs)
+library(janitor)
+
+# install.packages(c('geojsonio', 'broom', 'mapview', 'crosstalk', 'spdep', 'car', 'fs', 'janitor'))
+
+```
+
+## download a zip file
+
+```{r dataset, echo=TRUE}
+
+download.file("https://data.london.gov.uk/download/statistical-gis-boundary-files-london/9ba8c833-6370-4b11-abdc-314aa020d5e0/statistical-gis-boundaries-london.zip",  destfile="statistical-gis-boundaries-london.zip")
+
+#unzip it
+unzip("statistical-gis-boundaries-london.zip", exdir="prac9_data")
+```
+
+## list directories
+
+```{r directories, echo=TRUE}
+list.dirs("prac9_data/statistical-gis-boundaries-london")
+```
+
+## read in the boundaries from the file you have just unzipped into your working directory
+
+```{r read file echo=TRUE}
+LondonWardsss <- readOGR("prac9_data/statistical-gis-boundaries-london/ESRI/London_Ward_CityMerged.shp", 
+                         layer="London_Ward_CityMerged")
+```
+## convert data to a sf dataset
+
+```{r convert}
+#convert it to a simple features object
+LondonWardsssSF <- st_as_sf(LondonWardsss)
+
+#check coordinate reference system
+LondonWardsssSF
+```
+## convert CRS to BNG
+
+```{r crs convert}
+BNG = "+init=epsg:27700"
+LondonWardsssSFBNG <- st_transform(LondonWardsssSF, BNG)
+
+#check the data
+qtm(LondonWardsssSFBNG)
+```
+
+
+## read in some attribute data
+
+```{r echo=TRUE}
+LondonWardProfiles <- read_csv("https://data.london.gov.uk/download/ward-profiles-and-atlas/772d2d64-e8c6-46cb-86f9-e52b4c7851bc/ward-profiles-excel-version.csv", col_names = TRUE, locale = locale(encoding = 'Latin1'))
+```
+
+## check all of the columns have been read in correctly
+
+```{r check attribute, echo=TRUE}
+
+str(LondonWardProfiles)
+
+```
+
+## convert data type of attribute data
+
+```{r echo=TRUE}
+#We can use readr to deal with the issues in this dataset - which are to do with text values being stored in columns containing numeric values
+
+#read in some data - couple of things here. Read in specifying a load of likely 'n/a' values, also specify Latin1 as encoding as there is a pound sign (£) in one of the column headers - just to make things fun!
+LondonWardProfiles <- read_csv("https://data.london.gov.uk/download/ward-profiles-and-atlas/772d2d64-e8c6-46cb-86f9-e52b4c7851bc/ward-profiles-excel-version.csv", na = c("", "NA", "n/a"), locale = locale(encoding = 'Latin1'), col_names = TRUE)
+```
+
+## join data together 
+
+```{r echo=TRUE}
+#merge boundaries and data
+LonWardProfiles <- left_join(LondonWardsssSFBNG,
+                             LondonWardProfiles, 
+                             by = c("GSS_CODE" = "New code"))
+
+```
+
+## Map data
+
+```{r map joined data, echo=TRUE}
+
+#let's map our dependent variable to see if the join has worked:
+tmap_mode("view")
+qtm(LonWardProfiles, 
+    fill = "Average GCSE capped point scores - 2014", 
+    borders = NULL)
+
+```
+
+## Gather additional data
+
+```{r echo=TRUE}
+#might be a good idea to see where the secondary schools are in London too
+london_schools <- read_csv("https://data.london.gov.uk/download/london-schools-atlas/57046151-39a0-45d9-8dc0-27ea7fd02de8/all_schools_xy_2016.csv")
+
+#from the coordinate values stored in the x and y columns, which look like they are latitude and longitude values, create a new points dataset
+lon_schools_sf <- st_as_sf(london_schools, 
+                           coords = c("x","y"), 
+                           crs = 4326)
+
+#now pull out the secondary schools
+#these are the same - one uses grep() and one uses the stringr() package
+
+lond_sec_schools_sf <- lon_schools_sf[str_which(lon_schools_sf[["PHASE"]],"Secondary"),]
+lond_sec_schools_sf <- lon_schools_sf[grep("Secondary",lon_schools_sf[["PHASE"]]),]
+
+tmap_mode("view")
+qtm(lond_sec_schools_sf)
+```
+
+## Analysing GCSE exam performance - testing a research hypothesis
+
+To explore the factors that might influence GCSE exam performance in London, we are going to run a series of different regression models. A regression model is simply the expression of a linear relationship between our outcome variable (Average GCSE score in each Ward in London) and another variable or several variables that might explain this outcome.
+
+**Research Question and Hypothesis**
+Examining the spatial distribution of GSCE point scores in the map above, it is clear that there is variation across the city. My research question is:
+
+What are the factors that might lead to variation in Average GCSE point scores across the city?
+
+My research hypothesis that I am going to test is that there are other observable factors occurring in Wards in London that might affect the average GCSE scores of students living in those areas.
+
+In inferential statistics, we cannot definitively prove a hypothesis is true, but we can seek to disprove that there is absolutely nothing of interest occurring or no association between variables. The null hypothesis that I am going to test empirically with some models is that there is no relationship between exam scores and other observed variables across London.
+
+```{r linear regression echo=TRUE}
+q <- qplot(x = `Unauthorised Absence in All Schools (%) - 2013`, 
+           y = `Average GCSE capped point scores - 2014`, 
+           data=LonWardProfiles)
+
+#plot with a regression line - note, I've added some jitter here as the x-scale is rounded
+q + stat_smooth(method="lm", se=FALSE, size=1) + 
+  geom_jitter()
+```
+
+
+
+
+## Explanation of linear model above
+
+In the graph above, I used a method called ‘lm’ in the stat_smooth function in ggplot2 to draw the regression line. ‘lm’ stands for ‘linear model’ and is a standard function in R for running linear regression models. Use the help system to find out more about lm - ?lm
+
+Below is the code that could be used to draw the blue line in our scatter plot. Note, the tilde ~ symbol means “is modelled by”
+
+```{r echo=TRUE}
+#run the linear regression model and store its outputs in an object called model1
+model1 <- lm(`Average GCSE capped point scores - 2014` ~ `Unauthorised Absence in All Schools (%) - 2013`, 
+             data = LonWardProfiles)
+
+#show the summary of those outputs
+summary(model1)
+```
+
+## read in some attribute data
+
+*Background for the model: Interpreting and using the model outputs*
+
+In running a regression model, we are effectively trying to test (disprove) our null hypothesis. If our null hypothsis was true, then we would expect our coefficients to = 0.
+
+In the output summary of the model above, there are a number of features you should pay attention to:
+
+*Coefficient Estimates* - these are the  
+β0 (intercept) and  β1 (slope) parameter estimates from Equation 1. You will notice that at β0= 371.471
+  and  β1=−41.237they are pretty close to the estimates of 370 and -40 that we read from the graph earlier, but more precise.
+
+*Coefficient Standard Errors* - these represent the average amount the coefficient varies from the average value of the dependent variable (its standard deviation). So, for a 1% increase in unauthorised absence from school, while the model says we might expect GSCE scores to drop by -41.2 points, this might vary, on average, by about 1.9 points. As a rule of thumb, we are looking for a lower value in the standard error relative to the size of the coefficient.
+
+*Coefficient t-value* - this is the value of the coefficient divided by the standard error and so can be thought of as a kind of standardised coefficient value. The larger (either positive or negative) the value the greater the relative effect that particular independent variable is having on the dependent variable (this is perhaps more useful when we have several independent variables in the model) .
+
+*Coefficient p-value - Pr(>|t|)* - the p-value is a measure of significance. There is lots of debate about p-values which I won’t go into here, but essentially it refers to the probability of getting a coefficient as large as the one observed in a set of random data. p-values can be thought of as percentages, so if we have a p-value of 0.5, then there is a 5% chance that our coefficient could have occurred in some random data, or put another way, a 95% chance that out coefficient could have only occurred in our data.
+
+As a rule of thumb, the smaller the p-value, the more significant that variable is in the story and the smaller the chance that the relationship being observed is just random. Generally, statisticians use 5% or 0.05 as the acceptable cut-off for statistical significance - anything greater than that we should be a little sceptical about.
+
+In r the codes ***, **, **, . are used to indicate significance. We generally want at least a single * next to our coefficient for it to be worth considering.
+
+*R-Squared* - This can be thought of as an indication of how good your model is - a measure of ‘goodness-of-fit’ (of which there are a number of others).  
+r2 is quite an intuitite measure of fit as it ranges between 0 and 1 and can be thought of as the % of variation in the dependent variable (in our case GCSE score) explained by variation in the independent variable(s). In our example, an  
+r2 value of 0.42 indicates that around 42% of the variation in GCSE scores can be explained by variation in unathorised absence from school. In other words, this is quite a good model. The  
+r2 value will increase as more independent explanatory variables are added into the model, so where this might be an issue, the adjusted r-squared value can be used to account for this affect
+
+
+
+```{r echo=TRUE}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
