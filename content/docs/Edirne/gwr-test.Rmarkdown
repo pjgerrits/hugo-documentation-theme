@@ -7,12 +7,12 @@ date: "01/12/2021"
 weight: 2
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=TRUE}
 ```
 
 ## Summary
 
-This page contains a test of GWR functionality I have been experimenting with so far. I have been following a tutorial that was provided by Dr Andrew MacLachlan at CASA and is part of the Geographic Information Systems and Science module.Link to the actual tutorial can be found here:
+This page contains a test of GWR functionality I have been experimenting with so far. I have been following a tutorial that was provided by Dr Andrew MacLachlan at UCL CASA and is part of the Geographic Information Systems and Science module.Link to the actual tutorial can be found here:
 
 https://andrewmaclachlan.github.io/CASA0005repo_20192020/gwr-and-spatially-lagged-regression.html
 
@@ -61,6 +61,7 @@ list.dirs("prac9_data/statistical-gis-boundaries-london")
 LondonWardsss <- readOGR("prac9_data/statistical-gis-boundaries-london/ESRI/London_Ward_CityMerged.shp", 
                          layer="London_Ward_CityMerged")
 ```
+
 ## convert data to a sf dataset
 
 ```{r convert}

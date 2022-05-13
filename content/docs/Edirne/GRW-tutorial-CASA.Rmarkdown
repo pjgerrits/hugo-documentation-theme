@@ -1,0 +1,83 @@
+---
+title: "GRW-tutorial-CASA"
+linktitle: GRW-tutorial-CASA
+type: book
+author: "PietGerrits"
+date: "01/12/2021"
+weight: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Summary
+
+This page contains a test of GWR functionality I have been experimenting with so far. I have been following a tutorial that was provided by Dr Andrew MacLachlan at UCL CASA and is part of the Geographic Information Systems and Science module.Link to the actual tutorial can be found here:
+
+https://andrewmaclachlan.github.io/CASA0005repo_20192020/gwr-and-spatially-lagged-regression.html
+
+## setup libraries
+
+    library(tidyverse)
+    library(tmap)
+    library(geojsonio)
+    library(plotly)
+    library(rgdal)
+    library(broom)
+    library(mapview)
+    library(crosstalk)
+    library(sf)
+    library(sp)
+    library(spdep)
+    library(car)
+    library(fs)
+    library(janitor)
+
+```{r libraries, include=FALSE, results='hide'}
+
+library(tidyverse)
+library(tmap)
+library(geojsonio)
+library(plotly)
+library(rgdal)
+library(broom)
+library(mapview)
+library(crosstalk)
+library(sf)
+library(sp)
+library(spdep)
+library(car)
+library(fs)
+library(janitor)
+
+# install.packages(c('geojsonio', 'broom', 'mapview', 'crosstalk', 'spdep', 'car', 'fs', 'janitor'))
+
+```
+
+## download a zip file
+
+```{r dataset, echo=TRUE}
+
+download.file("https://data.london.gov.uk/download/statistical-gis-boundary-files-london/9ba8c833-6370-4b11-abdc-314aa020d5e0/statistical-gis-boundaries-london.zip",  destfile="statistical-gis-boundaries-london.zip")
+
+#unzip it
+unzip("statistical-gis-boundaries-london.zip", exdir="prac9_data")
+```
+
+## list directories
+
+```{r directories, echo=TRUE}
+list.dirs("prac9_data/statistical-gis-boundaries-london")
+```
+
+
+## read in the boundaries from the file you have just unzipped into your working directory
+
+```{r read file echo=TRUE}
+LondonWardsss <- readOGR("prac9_data/statistical-gis-boundaries-london/ESRI/London_Ward_CityMerged.shp", 
+                         layer="London_Ward_CityMerged")
+```
+
+
+

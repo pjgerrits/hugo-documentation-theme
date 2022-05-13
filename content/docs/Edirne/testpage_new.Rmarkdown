@@ -139,12 +139,48 @@ plot(st_geometry(file_walk_geom), col = "red", add = TRUE)
 plot(n, add = TRUE)
 ```
 
-## 9b From the top Nearest cities in the regiion
-```{r Top nearest cities}
-
+## 9b From the settlements to the roads distances
+```{r distance to roads stats}
+library(data.table)
+l_table2 <- as.data.table(transpose(result2))
+l_table2[, Length := V1]
+# setnames(l_table2, "is.SETOSA", "is_setosa")
+l_table2
 ```
 
-## 9c Correlation between Male/Female ratio distribution and Settlement size
-```{r Distribution}
+## 9c 
+```{r Distribution1}
+library(dplyr)
+x_test <- as.data.table(st_distance(m))
+x_test$row_num <- seq.int(nrow(x_test)) 
+file_settlements_geom$row_num <- seq.int(nrow(file_settlements_geom)) 
+join_table_distance_l <- inner_join(file_settlements_geom, x_test[ , c("V1", "row_num")])
+# ?join
+plot(join_table_distance_l$both, join_table_distance_l$V1)
+```
 
+## plot distance vs settlement population
+```{r Distribution2}
+
+plot(join_table_distance_l$both ~join_table_distance_l$V1, pch = 16, cex = 1.3, col = "blue", main = "Population Distribution vs Distance to transport", xlab = "Distance(m)", ylab = "Pop. Number")
+lm(join_table_distance_l$both ~ join_table_distance_l$V1)
+```
+
+## plot distance vs settlement population
+```{r Distribution2}
+fit1 <- lm(both ~ V1, data = join_table_distance_l)
+summary(fit1)
+# lm(join_table_distance_l$both ~ join_table_distance_l$V1)
+```
+## plot distance vs settlement population
+```{r Distribution2}
+
+library(ggplot2)
+
+ggplot(join_table_distance_l, aes(x = join_table_distance_l$both, y = join_table_distance_l$V1)) + geom_point + stat_smooth(method = "lm", col = "red")
+
+
+# fit1 <- lm(both ~ V1, data = join_table_distance_l)
+# summary(fit1)
+# # lm(join_table_distance_l$both ~ join_table_distance_l$V1)
 ```
