@@ -37,7 +37,7 @@ file_motor = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transpo
 newGeom = st_as_sfc(structure(as.character(file_motor$geom), class = "WKB"),EWKB=TRUE)
 file_motor_geom = st_set_geometry(file_motor, newGeom)
 # plot(file_motor_geom$geometry)
-map_motor = ggplot(file_motor_geom) + geom_sf()
+map_motor = ggplot(file_motor_geom) + geom_sf() + aes(colour = "red")
 map_motor
 ```
 
@@ -57,13 +57,13 @@ map_cart
 file_walk = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Fußweg')")
 newGeom = st_as_sfc(structure(as.character(file_walk$geom), class = "WKB"),EWKB=TRUE)
 file_walk_geom = st_set_geometry(file_walk, newGeom)
-map_cart = ggplot(file_walk_geom) + geom_sf() + aes(col = "red") 
-map_cart
+map_walk = ggplot(file_walk_geom) + geom_sf() + aes(col = "red") 
+map_walk
 ```
 
 ## 6a. Access PostgreSQL layer and query dataset for Settlement layer
 ```{r settlelments, echo=TRUE}
-file_settlements = dbGetQuery(con, "select * from piet_phd_data.nfs_settlements_1940_pop_xy where not geom in ('0101000020E610000000000000000000000000000000000000')")
+file_settlements = dbGetQuery(con, "select * from piet_phd_data.nfs_settlements_1940_pop_xy where not geom in ('0101000020E610000000000000000000000000000000000000') AND not id in ('210') ")
 newGeom = st_as_sfc(structure(as.character(file_settlements$geom), class = "WKB"),EWKB=TRUE)
 file_settlements_geom = st_set_geometry(file_settlements, newGeom)
 plot(file_settlements_geom$geometry)
@@ -139,10 +139,38 @@ plot(st_geometry(file_walk_geom), col = "red", add = TRUE)
 plot(n, add = TRUE)
 ```
 
+## 9a2 Calculate distance from settlements to the nearest roads per type
+```{r Eucl Distance, echo=FALSE,results='hide', message=FALSE,fig.keep='all'}
+library(data.table)
+library(sf) 
+result1 <-as.data.table(st_distance(file_settlements_geom, file_motor_geom))
+# result2 <-st_distance(file_settlements_geom, file_cart_geom)
+# result3 <-st_distance(file_settlements_geom, file_walk_geom)
+x_test <- result1
+# st_nearest_points(file_motor_geom, file_settlements_geom)
+l_table33 <- as.data.table(transpose(x_test))
+l_table_min <- apply(l_table33,2,min)
+l_min <- as.data.table(l_table_min)
+# l = st_connect(file_settlements_geom, file_motor_geom, ids = result1, progress = FALSE)
+# m = st_connect(file_settlements_geom, file_cart_geom, ids = result2, progress = FALSE)
+# n = st_connect(file_settlements_geom, file_walk_geom, ids = result3, progress = FALSE)
+# plot(l, col = NA)  # For setting the extent
+# plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+# plot(st_geometry(file_motor_geom), col = "red", add = TRUE)
+# plot(l, add = TRUE)
+# plot(m, col = NA)  # For setting the extent
+# plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+# plot(st_geometry(file_cart_geom), col = "red", add = TRUE)
+# plot(m, add = TRUE)
+# plot(n, col = NA)  # For setting the extent
+# plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+# plot(st_geometry(file_walk_geom), col = "red", add = TRUE)
+# plot(n, add = TRUE)
+```
+
 ## 9b From the settlements to the roads distances
 ```{r distance to roads stats}
-library(data.table)
-l_table2 <- as.data.table(transpose(result2))
+l_table2 <- as.data.table(transpose(result1))
 l_table2[, Length := V1]
 # setnames(l_table2, "is.SETOSA", "is_setosa")
 l_table2
@@ -151,36 +179,39 @@ l_table2
 ## 9c 
 ```{r Distribution1}
 library(dplyr)
-x_test <- as.data.table(st_distance(m))
+x_test <- l_min
 x_test$row_num <- seq.int(nrow(x_test)) 
 file_settlements_geom$row_num <- seq.int(nrow(file_settlements_geom)) 
-join_table_distance_l <- inner_join(file_settlements_geom, x_test[ , c("V1", "row_num")])
+join_table_distance_l <- inner_join(file_settlements_geom, x_test[ , c("l_table_min", "row_num")])
 # ?join
-plot(join_table_distance_l$both, join_table_distance_l$V1)
+plot(join_table_distance_l$both, join_table_distance_l$l_table_min)
 ```
 
 ## plot distance vs settlement population
 ```{r Distribution2}
 
-plot(join_table_distance_l$both ~join_table_distance_l$V1, pch = 16, cex = 1.3, col = "blue", main = "Population Distribution vs Distance to transport", xlab = "Distance(m)", ylab = "Pop. Number")
-lm(join_table_distance_l$both ~ join_table_distance_l$V1)
+plot(join_table_distance_l$both ~join_table_distance_l$l_table_min, pch = 16, cex = 1.3, col = "blue", main = "Population Distribution vs Distance to transport", xlab = "Distance(m)", ylab = "Pop. Number")
+lm(join_table_distance_l$both ~ join_table_distance_l$l_table_min)
+abline(lm(join_table_distance_l$both ~ join_table_distance_l$l_table_min), col = "red")
 ```
 
 ## plot distance vs settlement population
 ```{r Distribution2}
-fit1 <- lm(both ~ V1, data = join_table_distance_l)
+fit1 <- lm(both ~ l_table_min, data = join_table_distance_l)
 summary(fit1)
 # lm(join_table_distance_l$both ~ join_table_distance_l$V1)
 ```
 ## plot distance vs settlement population
 ```{r Distribution2}
-
+library(spgwr)
 library(ggplot2)
-
-ggplot(join_table_distance_l, aes(x = join_table_distance_l$both, y = join_table_distance_l$V1)) + geom_point + stat_smooth(method = "lm", col = "red")
-
-
-# fit1 <- lm(both ~ V1, data = join_table_distance_l)
-# summary(fit1)
-# # lm(join_table_distance_l$both ~ join_table_distance_l$V1)
+library(maptools)
+# plot(fit1, which=3)
+resids<-residuals(fit1)
+colours <- c("dark blue", "blue", "red", "dark red")
+map.resids <- SpatialPointsDataFrame(data=data.frame(join_table_distance_l), coords=cbind(as.numeric("newpoint_x"), as.numeric("newpoint_y")))
+# spplot(map.resids, cuts=quantile(resids), col.regions=colours, cex=1) 
+# # fit1 <- lm(both ~ V1, data = join_table_distance_l)
+# # summary(fit1)
+# # # lm(join_table_distance_l$both ~ join_table_distance_l$V1)
 ```

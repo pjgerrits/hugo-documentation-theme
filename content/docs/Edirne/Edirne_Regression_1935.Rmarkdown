@@ -1,0 +1,213 @@
+---
+title: "Edirne_settlement_road_regression"
+linktitle: Edirne_settlement_road_regression
+type: book
+author: "PietGerrits"
+date: "01/12/2021"
+weight: 1
+# Prev/next pager order (if `docs_section_pager` enabled in `params.toml`)
+---
+## 1. libraries
+```{r setup, echo=TRUE}
+library(DBI)
+library(sf)
+library(leaflet)
+library(ggplot2)
+library(tmap)
+library(dplyr)
+library(nngeo)
+```
+
+## 2. Connect to PostgreSQL Database
+```{r setup_db, echo=TRUE}
+library(DBI)
+db <- 'urbanoccupations_db'  #provide the name of your db
+host_db <- 'aws-eu-central-1-portal.1.dblayer.com' #i.e. # i.e. 'ec2-54-83-201-96.compute-1.amazonaws.com'  
+db_port <- '18368'  # or any other port specified by the DBA
+db_u <- 'online_user'  
+db_p <- 'Peculiar-Crazy9-Trailing'
+con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_u, password=db_p)
+```
+
+## 3a. Access PostgreSQL layer and query dataset for Motorized Transport
+```{r motor, echo=TRUE}
+file_motor = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Ausgebaute Allwetterstrasse', 'Fahrstrasse')")
+newGeom = st_as_sfc(structure(as.character(file_motor$geom), class = "WKB"),EWKB=TRUE)
+file_motor_geom = st_set_geometry(file_motor, newGeom)
+# plot(file_motor_geom$geometry)
+map_motor = ggplot(file_motor_geom) + geom_sf() + aes(colour = "red")
+map_motor
+```
+
+## 3b. Access PostgreSQL layer and query dataset for cart Transport
+```{r cart, echo=TRUE}
+file_cart = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Karawanenweg', 'Saumweg')")
+newGeom = st_as_sfc(structure(as.character(file_cart$geom), class = "WKB"),EWKB=TRUE)
+file_cart_geom = st_set_geometry(file_cart, newGeom)
+map_cart = ggplot(file_cart_geom) + geom_sf() + aes(colour = "red") 
+map_cart
+```
+
+## 3c. Access PostgreSQL layer and query dataset for Walking paths
+```{r walking, echo=TRUE}
+file_walk = dbGetQuery(con, "select * from piet_phd_data.DH_1940_Edirne_Transport WHERE network_ty IN ('Fußweg')")
+newGeom = st_as_sfc(structure(as.character(file_walk$geom), class = "WKB"),EWKB=TRUE)
+file_walk_geom = st_set_geometry(file_walk, newGeom)
+map_walk = ggplot(file_walk_geom) + geom_sf() + aes(col = "red") 
+map_walk
+```
+
+## 6a. Access PostgreSQL layer and query dataset for Settlement layer
+```{r settlelments, echo=TRUE}
+file_settlements = dbGetQuery(con, "select * from piet_phd_data.nfs_settlements_1940_pop_xy where not geom in ('0101000020E610000000000000000000000000000000000000') AND not id in ('210') ")
+newGeom = st_as_sfc(structure(as.character(file_settlements$geom), class = "WKB"),EWKB=TRUE)
+file_settlements_geom = st_set_geometry(file_settlements, newGeom)
+plot(file_settlements_geom$geometry)
+```
+
+## 6b. Visualize first few rows of data as a sample
+
+```{r data, echo=TRUE}
+library (knitr)
+
+kable(head(file_settlements, 10), caption = "Sample of Dataset")
+```
+
+## 9a2 Calculate distance from settlements to the nearest roads per type
+```{r Eucl Distance, echo=FALSE,results='hide', message=FALSE,fig.keep='all'}
+library(data.table)
+library(sf) 
+result1 <-as.data.table(st_distance(file_settlements_geom, file_motor_geom))
+# result2 <-st_distance(file_settlements_geom, file_cart_geom)
+# result3 <-st_distance(file_settlements_geom, file_walk_geom)
+# st_nearest_points(file_motor_geom, file_settlements_geom)
+l_table33 <- transpose(result1)
+l_table_min <- apply(l_table33,2,min)
+l_min <- as.data.table(l_table_min)
+#rename near column to for the nearest road in M distance
+names(l_min)[names(l_min) == "l_table_min"] <- "nearest_road_m"
+# calculate row number
+l_min$row_num <- seq.int(nrow(l_min)) 
+
+```
+
+## 9c 
+```{r Distribution1}
+library(dplyr)
+file_settlements_geom$row_num <- seq.int(nrow(file_settlements_geom)) 
+join_table_distance_l <- inner_join(file_settlements_geom, l_min[ , c("nearest_road_m", "row_num")])
+plot(join_table_distance_l$both, join_table_distance_l$l_table_min)
+```
+
+## plot distance vs settlement population
+```{r Distribution2a}
+fit1 <- lm(both ~ nearest_road_m, data = join_table_distance_l)
+summary(fit1)
+# lm(join_table_distance_l$both ~ join_table_distance_l$V1)
+```
+
+## plot distance vs settlement population
+```{r Distribution2b}
+
+plot(join_table_distance_l$both ~join_table_distance_l$nearest_road_m, pch = 16, cex = 1.3, col = "blue", main = "Population Distribution vs Distance to transport", xlab = "Distance(m)", ylab = "Pop. Number")
+lm(join_table_distance_l$both ~ join_table_distance_l$nearest_road_m)
+abline(lm(join_table_distance_l$both ~ join_table_distance_l$nearest_road_m), col = "red")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 8. leaflet map of data
+
+```{r leaflet, echo=TRUE}
+## 8a.Calculate symbology column
+#Classification of population figures and addition of column "colorpal" for symbolisation
+file_settlements_geom$colorpal <- cut(file_settlements_geom$both, c(0,250,500,1000,2500,20000), include.lowest = F, labels = c('250', '500', '1000', '2500', '2500+'))
+
+# Colour coding of the legend and symbols in leaflet map
+beatCol <- colorFactor(palette = 'BuPu', file_settlements_geom$colorpal)
+
+# 8b. Map creation
+map <- leaflet() %>% 
+  addTiles() %>%
+  addMiniMap( position = "topleft",   toggleDisplay = TRUE, autoToggleDisplay = TRUE, collapsedWidth = 19, collapsedHeight = 19, minimized=TRUE) %>%
+  addProviderTiles(providers$Stamen.Toner, group = 'Toner')  %>%
+  addProviderTiles(provider = providers$Esri.WorldImagery, group = 'ESRI')  %>%
+  addCircleMarkers(data=file_settlements_geom, file_settlements_geom$newpoint_x, file_settlements_geom$newpoint_y, color = ~beatCol(colorpal), radius = ~sqrt(both/1000), group = 'Settlements',  opacity = 1, weight = 10, popup = ~paste0("<b>", belediye_koy_original, "</b>","<br/>", format(both, big.mark=","))) %>%
+  addPolylines(data=file_motor_geom$geometry, color = "Green",   smoothFactor = 1,  opacity = 0.5, weight =5, group = 'Motorways') %>%
+  addPolylines(data=file_cart_geom$geometry, color = "Pink",   smoothFactor = 1,  opacity = 0.4, weight =2, group = 'Cart roads') %>%
+  addPolylines(data=file_walk_geom$geometry, color = "Red",   smoothFactor = 1,  opacity = 0.5, weight =4, group = 'Walking paths') %>%
+  addLegend('bottomright', pal = beatCol, values = file_settlements_geom$colorpal, title = '<b>Settlement size</b>', opacity = 1) %>%
+addLayersControl(
+    baseGroups = c("Toner (default)", "ESRI"),
+    overlayGroups = c("Settlements", "Motorways", "Cart roads", "Walking paths"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+map
+```
+
+## 9 Exploratory Data Analysis (EDA)
+
+## 9a Calculate distance from settlements to the nearest roads per type
+```{r Eucl Distance, echo=FALSE,results='hide', message=FALSE,fig.keep='all'}
+
+library(sf) 
+result1 <-st_nn(file_settlements_geom, file_motor_geom)
+result2 <-st_nn(file_settlements_geom, file_cart_geom)
+result3 <-st_nn(file_settlements_geom, file_walk_geom)
+# st_nearest_points(file_motor_geom, file_settlements_geom)
+# head(result)
+l = st_connect(file_settlements_geom, file_motor_geom, ids = result1, progress = FALSE)
+m = st_connect(file_settlements_geom, file_cart_geom, ids = result2, progress = FALSE)
+n = st_connect(file_settlements_geom, file_walk_geom, ids = result3, progress = FALSE)
+plot(l, col = NA)  # For setting the extent
+plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+plot(st_geometry(file_motor_geom), col = "red", add = TRUE)
+plot(l, add = TRUE)
+plot(m, col = NA)  # For setting the extent
+plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+plot(st_geometry(file_cart_geom), col = "red", add = TRUE)
+plot(m, add = TRUE)
+plot(n, col = NA)  # For setting the extent
+plot(st_geometry(file_settlements_geom), col = "darkgrey", add = TRUE)
+plot(st_geometry(file_walk_geom), col = "red", add = TRUE)
+plot(n, add = TRUE)
+```
+
+
+
+## plot distance vs settlement population
+```{r Distribution2}
+library(spgwr)
+library(ggplot2)
+library(maptools)
+# plot(fit1, which=3)
+resids<-residuals(fit1)
+colours <- c("dark blue", "blue", "red", "dark red")
+map.resids <- SpatialPointsDataFrame(data=data.frame(join_table_distance_l), coords=cbind(as.numeric("newpoint_x"), as.numeric("newpoint_y")))
+# spplot(map.resids, cuts=quantile(resids), col.regions=colours, cex=1) 
+# # fit1 <- lm(both ~ V1, data = join_table_distance_l)
+# # summary(fit1)
+# # # lm(join_table_distance_l$both ~ join_table_distance_l$V1)
+```
