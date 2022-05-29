@@ -140,17 +140,24 @@ plot(n, add = TRUE)
 ```
 
 ## 9a2 Calculate distance from settlements to the nearest roads per type
-```{r Eucl Distance, echo=FALSE,results='hide', message=FALSE,fig.keep='all'}
+```{r Eucl Distance, echo=FALSE, fig.keep='all', message=FALSE, results='hide'}
 library(data.table)
+library(Matrix)
 library(sf) 
-result1 <-as.data.table(st_distance(file_settlements_geom, file_motor_geom))
+result1 <- as.matrix(st_distance(file_settlements_geom, file_motor_geom))
+min_matrix <- row
+
+text_x <- result1 %>% # take the data.table
+  summarise_all(funs(min))# get the sum of each column
+text_x2 <- transpose(text_x)
+# result1 <- data.table(cn = names(result1), transpose(result1))
 # result2 <-st_distance(file_settlements_geom, file_cart_geom)
 # result3 <-st_distance(file_settlements_geom, file_walk_geom)
-x_test <- result1
 # st_nearest_points(file_motor_geom, file_settlements_geom)
-l_table33 <- as.data.table(transpose(x_test))
-l_table_min <- apply(l_table33,2,min)
-l_min <- as.data.table(l_table_min)
+# l_table33 <- transpose(as.data.table(result1))
+# l_table_min <- apply(l_table33$x,2,min)
+# l_min <- as.data.table(l_table_min)
+# l_min
 # l = st_connect(file_settlements_geom, file_motor_geom, ids = result1, progress = FALSE)
 # m = st_connect(file_settlements_geom, file_cart_geom, ids = result2, progress = FALSE)
 # n = st_connect(file_settlements_geom, file_walk_geom, ids = result3, progress = FALSE)

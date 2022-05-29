@@ -4,11 +4,13 @@ linktitle: edirne-case-study
 type: book
 author: "PietGerrits"
 date: "01/12/2021"
-weight: 1
+weight: 2
 # Prev/next pager order (if `docs_section_pager` enabled in `params.toml`)
 ---
 ## 1. libraries
 ```{r setup, echo=TRUE}
+##this is a test
+library(herehere)
 library(DBI)
 library(sf)
 library(leaflet)
